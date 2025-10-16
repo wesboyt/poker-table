@@ -86,7 +86,7 @@ class Hand:
                             self.state.check_or_call()
                         else:
                             self.state.complete_bet_or_raise_to(chips + invested)
-            if street > 3:
+            elif street > 3:
                 self.state.burn_card('??')
                 self.state.deal_board(u_hand[1][3])
                 for action in u_hand[5]:
@@ -101,7 +101,7 @@ class Hand:
                             self.state.check_or_call()
                         else:
                             self.state.complete_bet_or_raise_to(chips + invested)
-            if street > 4:
+            elif street > 4:
                 self.state.burn_card('??')
                 self.state.deal_board(u_hand[1][4])
                 for action in u_hand[6]:
