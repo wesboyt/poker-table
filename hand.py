@@ -85,14 +85,15 @@ class Hand:
                 for action in u_hand[4]:
                     player, chips = parseAction(action)
                     actor = self.state.turn_index
-                    invested = self.state.bets[actor]
+                    
                     if chips < 0:
                         self.state.fold()
                     else:
-                        min = self.state.checking_or_calling_amount + invested
+                        min = self.state.checking_or_calling_amount
                         if chips <= min:
                             self.state.check_or_call()
                         else:
+                            invested = self.state.bets[actor]
                             self.state.complete_bet_or_raise_to(chips + invested)
             if street > 3:
                 self.state.burn_card('??')
@@ -100,14 +101,15 @@ class Hand:
                 for action in u_hand[5]:
                     player, chips = parseAction(action)
                     actor = self.state.turn_index
-                    invested = self.state.bets[actor]
+                    
                     if chips < 0:
                         self.state.fold()
                     else:
-                        min = self.state.checking_or_calling_amount + invested
+                        min = self.state.checking_or_calling_amount
                         if chips <= min:
                             self.state.check_or_call()
                         else:
+                            invested = self.state.bets[actor]
                             self.state.complete_bet_or_raise_to(chips + invested)
             if street > 4:
                 self.state.burn_card('??')
@@ -115,14 +117,15 @@ class Hand:
                 for action in u_hand[6]:
                     player, chips = parseAction(action)
                     actor = self.state.turn_index
-                    invested = self.state.bets[actor]
+                    
                     if chips < 0:
                         self.state.fold()
                     else:
-                        min = self.state.checking_or_calling_amount + invested
+                        min = self.state.checking_or_calling_amount
                         if chips <= min:
                             self.state.check_or_call()
                         else:
+                            invested = self.state.bets[actor]
                             self.state.complete_bet_or_raise_to(chips + invested)
 
     def get_action_space(self):
