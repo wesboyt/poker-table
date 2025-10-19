@@ -15,10 +15,14 @@ class Hand:
         self.auto_deal = auto_deal
         self.done = False
         if not u_hand:
+            #if random.randint(1,2) == 1:
+            #    self.u_hand = self._from_scratch(6,2,5,100,1000)
+            #else:
             self.u_hand = self._from_scratch(6,100,200, 200 * 20, random.randint(200*100, 200 * 500))
             self.active_players = 6
 
         else:
+            #[["","9s2s","","","",""],[],["p0c10050","p1c5000","p2c32858","p3c6951","p4c12534","p5c11301","p0c50","p1c100"],["p2f","p3f","p4f","p5c220","p0f","p1f"],[],[],[],[],[]]
             self.u_hand = [[], [], [], [], [], [], [], []]
             for index, val in enumerate(u_hand):
                 sub_array = self.u_hand[index]
@@ -68,8 +72,9 @@ class Hand:
 
 
                 if chips < 0:
-                    if self.state.can_fold():
+                    if self.state.checking_or_calling_amount != 0:
                         self.state.fold()
+                        self.active_players -= 1
                     else:
                         print("chips:", chips, "action:", action, "hand:", self.u_hand)
                 else:
@@ -85,15 +90,15 @@ class Hand:
                 for action in u_hand[4]:
                     player, chips = parseAction(action)
                     actor = self.state.turn_index
-                    
+                    invested = self.state.bets[actor]
                     if chips < 0:
                         self.state.fold()
+                        self.active_players -= 1
                     else:
                         min = self.state.checking_or_calling_amount
                         if chips <= min:
                             self.state.check_or_call()
                         else:
-                            invested = self.state.bets[actor]
                             self.state.complete_bet_or_raise_to(chips + invested)
             if street > 3:
                 self.state.burn_card('??')
@@ -101,15 +106,15 @@ class Hand:
                 for action in u_hand[5]:
                     player, chips = parseAction(action)
                     actor = self.state.turn_index
-                    
+                    invested = self.state.bets[actor]
                     if chips < 0:
                         self.state.fold()
+                        self.active_players -= 1
                     else:
                         min = self.state.checking_or_calling_amount
                         if chips <= min:
                             self.state.check_or_call()
                         else:
-                            invested = self.state.bets[actor]
                             self.state.complete_bet_or_raise_to(chips + invested)
             if street > 4:
                 self.state.burn_card('??')
@@ -117,15 +122,15 @@ class Hand:
                 for action in u_hand[6]:
                     player, chips = parseAction(action)
                     actor = self.state.turn_index
-                    
+                    invested = self.state.bets[actor]
                     if chips < 0:
                         self.state.fold()
+                        self.active_players -= 1
                     else:
                         min = self.state.checking_or_calling_amount
                         if chips <= min:
                             self.state.check_or_call()
                         else:
-                            invested = self.state.bets[actor]
                             self.state.complete_bet_or_raise_to(chips + invested)
 
     def get_action_space(self):
@@ -143,7 +148,7 @@ class Hand:
                 options['check'] = 0
             else:
                 options['call'] = call_or_check
-        if self.state.can_fold():
+        if self.state.checking_or_calling_amount != 0:
             options['fold'] = 0
         if self.state.min_completion_betting_or_raising_to_amount != None:
             options['min_bet'] = self.state.min_completion_betting_or_raising_to_amount - self.state.bets[self.state.turn_index]
@@ -152,45 +157,7 @@ class Hand:
         options['player'] = self.state.turn_index
         return options
 
-    def make_action(self, player :int, chips :int):
-        if self.done:
-            return False
-        current_player = self.state.turn_index
-        if player != current_player:
-            return False
-        if chips == 0:
-            if self.state.can_check_or_call() and self.state.checking_or_calling_amount == 0:
-                self.u_hand[self.state.street_index + 3].append("p" + str(current_player) + "c0")
-                self.state.check_or_call()
-            elif self.state.can_fold():
-                self.u_hand[self.state.street_index + 3].append("p" + str(current_player) + "f")
-                self.state.fold()
-                self.active_players = self.active_players - 1
-            else:
-                print("ERROR: 0 chips when not possible.")
-                return False
-        else:
-            min = self.state.checking_or_calling_amount
-            if chips <= min:
-                self.u_hand[self.state.street_index + 3].append("p" + str(current_player) + "c" + str(chips))
-                self.state.check_or_call()
-            else:
-                if self.state.min_completion_betting_or_raising_to_amount == None:
-                    size = self.state.checking_or_calling_amount
-                    self.u_hand[self.state.street_index + 3].append("p" + str(current_player) + "c" + str(size))
-                    self.state.check_or_call()
-                else:
-                    minimum = self.state.min_completion_betting_or_raising_to_amount - self.state.bets[self.state.turn_index]
-                    if self.state.max_completion_betting_or_raising_to_amount == None:
-                        maximum = self.state.checking_or_calling_amount - self.state.bets[self.state.turn_index]
-                    else:
-                        maximum = self.state.max_completion_betting_or_raising_to_amount - self.state.bets[self.state.turn_index]
-                    if chips > maximum:
-                        chips = maximum
-                    elif chips < minimum:
-                        chips = minimum
-                    self.u_hand[self.state.street_index + 3].append("p" + str(current_player) + "c" + str(chips))
-                    self.state.complete_bet_or_raise_to(chips + self.state.bets[self.state.turn_index])
+    def post_action(self):
         if self.state.can_select_runout_count():
             self.state.select_runout_count(1)
         if self.active_players > 1:
@@ -206,15 +173,67 @@ class Hand:
                 if payoff > 0:
                     self.u_hand[-1].append("p" + str(player_index) + "c" + str(payoff))
             self.done = True
+
+    def call(self):
+        current_player = self.state.turn_index
+        chips = self.state.checking_or_calling_amount
+        if self.state.can_check_or_call() and chips:
+                self.u_hand[self.state.street_index + 3].append("p" + str(current_player) + "c" + str(chips))
+                self.state.check_or_call()
+        self.post_action()
         return True
+
+    def bet_or_raise(self, chips :int):
+        #chips is the additional amount placed in middle, not the new total.
+        current_player = self.state.turn_index
+        minimum = self.state.min_completion_betting_or_raising_to_amount - self.state.bets[self.state.turn_index]
+        if self.state.max_completion_betting_or_raising_to_amount == None:
+            maximum = self.state.checking_or_calling_amount - self.state.bets[self.state.turn_index]
+            print("found none")
+        else:
+            maximum = self.state.max_completion_betting_or_raising_to_amount - self.state.bets[self.state.turn_index]
+        if chips > maximum:
+            chips = maximum
+        elif chips < minimum:
+            chips = minimum
+        self.u_hand[self.state.street_index + 3].append("p" + str(current_player) + "c" + str(chips))
+        self.state.complete_bet_or_raise_to(chips + self.state.bets[self.state.turn_index])
+        self.post_action()
+        return True
+
+    def check(self):
+        current_player = self.state.turn_index
+        if self.state.can_check_or_call() and self.state.checking_or_calling_amount == 0:
+            self.u_hand[self.state.street_index + 3].append("p" + str(current_player) + "c0")
+            self.state.check_or_call()
+            self.post_action()
+            return True
+        else:
+            print("check:", self.state.can_check_or_call(), self.state.checking_or_calling_amount, self.u_hand)
+            return False
+
+    def fold(self):
+        if self.state.can_fold():
+            current_player = self.state.turn_index
+            self.u_hand[self.state.street_index + 3].append("p" + str(current_player) + "f")
+            self.state.fold()
+            self.active_players = self.active_players - 1
+            self.post_action()
+            return True
+        else:
+            print("couldnt fold:", self.u_hand, )
+            return False
 
     def _state_card_to_text(self, card):
         return card.rank + card.suit
 
-    def get_u_hand(self):
+    def get_u_hand(self, player=None):
         #get u_hand from perspective of current player
         temp_u_hand = copy.deepcopy(self.u_hand)
-        player_index = self.state.turn_index
+        if player == None:
+            player_index = self.state.turn_index
+        else:
+            player_index = player
         for i in range(self.player_count):
             if i != player_index:
                 temp_u_hand[0][i] = ""
@@ -253,13 +272,20 @@ class Hand:
             stacks,
             self.player_count,
         )
+        #self.state.mode = Mode.CASH_GAME
         self.preflop_stacks = self.state.starting_stacks
         for i in range(self.player_count):
             hole_cards = "".join(map(self._state_card_to_text,self.state.deal_hole(2).cards))
             self.u_hand[0].append(hole_cards)
         return self.u_hand
 
+#self.state.hole_cards
+#self.state.payoffs->win/loss
+#self.state.board_cards
+#self.state.turn_index()
+
 if __name__ == '__main__':
-    hand = Hand([["","","","","","9hKc"],["Js","Ts","9s"],["p0c100","p1c99","p2c109","p3c102","p4c110","p5c85","p0c1","p1c2"],["p2f","p3f","p4f","p5c43","p0f", "p1c41"],[],[],[]])
+    #hand = Hand([["","","","","","9hKc"],["Js","Ts","9s"],["p0c100","p1c99","p2c109","p3c102","p4c110","p5c85","p0c1","p1c2"],["p2f","p3f","p4f","p5c43","p0f", "p1c41"],[],[],[]])
+    hand = Hand([["", "", "", "", "TdJd", ""], ["7s", "6s", "3d"], ["p0c30457", "p1c23785", "p2c7234", "p3c18815", "p4c12575", "p5c10289", "p0c100", "p1c200"], ["p2f", "p3f", "p4c200", "p5c875", "p0f", "p1f", "p4c675"], [], [], [], []])
     for i in range(5):
         hand = Hand()
