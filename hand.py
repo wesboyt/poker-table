@@ -1,4 +1,4 @@
-from pokerkit import Automation, NoLimitTexasHoldem, Mode, Folding, HoleDealing, CheckingOrCalling, BlindOrStraddlePosting, CompletionBettingOrRaisingTo, BoardDealing
+from pokerkit import Automation, NoLimitTexasHoldem, Mode
 import random
 import copy
 
@@ -15,14 +15,10 @@ class Hand:
         self.auto_deal = auto_deal
         self.done = False
         if not u_hand:
-            #if random.randint(1,2) == 1:
-            #    self.u_hand = self._from_scratch(6,2,5,100,1000)
-            #else:
             self.u_hand = self._from_scratch(6,100,200, 200 * 20, random.randint(200*100, 200 * 500))
             self.active_players = 6
 
         else:
-            #[["","9s2s","","","",""],[],["p0c10050","p1c5000","p2c32858","p3c6951","p4c12534","p5c11301","p0c50","p1c100"],["p2f","p3f","p4f","p5c220","p0f","p1f"],[],[],[],[],[]]
             self.u_hand = [[], [], [], [], [], [], [], []]
             for index, val in enumerate(u_hand):
                 sub_array = self.u_hand[index]
@@ -136,11 +132,6 @@ class Hand:
     def get_action_space(self):
         if self.done:
             return False
-        #return player index of whos turn it is
-        #return available options fold, check, call, raise, allin, unavailable options will be missing.
-        #0,{fold:0, check:0, call:x, raise:(min, max), allin:x}
-        #if it is time to deal cards, do so and return next player up's action space
-        #if it is end game
         options = {}
         if self.state.can_check_or_call():
             call_or_check = self.state.checking_or_calling_amount
@@ -173,6 +164,9 @@ class Hand:
                 if payoff > 0:
                     self.u_hand[-1].append("p" + str(player_index) + "c" + str(payoff))
             self.done = True
+
+    def pot_size(self):
+        return sum(self.state.starting_stacks) - sum(self.state.stacks)
 
     def call(self):
         current_player = self.state.turn_index
@@ -278,11 +272,6 @@ class Hand:
             hole_cards = "".join(map(self._state_card_to_text,self.state.deal_hole(2).cards))
             self.u_hand[0].append(hole_cards)
         return self.u_hand
-
-#self.state.hole_cards
-#self.state.payoffs->win/loss
-#self.state.board_cards
-#self.state.turn_index()
 
 if __name__ == '__main__':
     #hand = Hand([["","","","","","9hKc"],["Js","Ts","9s"],["p0c100","p1c99","p2c109","p3c102","p4c110","p5c85","p0c1","p1c2"],["p2f","p3f","p4f","p5c43","p0f", "p1c41"],[],[],[]])
