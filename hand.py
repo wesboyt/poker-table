@@ -1,6 +1,9 @@
-from pokerkit import Automation, NoLimitTexasHoldem, Mode
+from concurrent.futures import ProcessPoolExecutor
+
+from pokerkit import Automation, NoLimitTexasHoldem, Mode, parse_range, calculate_equities, StandardHighHand, calculate_hand_strength
 import random
 import copy
+
 
 def parseAction(input):
     playerSeat = int(input[1:2])
@@ -14,6 +17,7 @@ class Hand:
     def __init__(self, u_hand=None, auto_deal=True):
         self.auto_deal = auto_deal
         self.done = False
+        self.processor = None
         if not u_hand:
             self.u_hand = self._from_scratch(6,100,200, 200 * 20, random.randint(200*100, 200 * 500))
             self.active_players = 6
@@ -148,6 +152,45 @@ class Hand:
         options['player'] = self.state.turn_index
         return options
 
+    def shuffle(self):
+        random.shuffle(self.state.deck_cards)
+
+    def equity(self):
+        ranges = []
+        found_unknown = False
+        player_count = 0
+
+        for holecards in self.state.hole_cards:
+            if len(holecards):
+                if holecards[0].unknown_status:
+                    found_unknown = True
+                    player_count += 1
+                else:
+                    ranges.append(tuple([tuple(holecards)]))
+                    player_count += 1
+        ranges = tuple(ranges)
+        board = []
+
+        for cardlist in self.state.board_cards:
+            for card in cardlist:
+                board.append(card)
+        board = tuple(board)
+        if found_unknown:
+            return [calculate_hand_strength(player_count, ranges[0], board, 2,5, self.state.deck,(StandardHighHand,), sample_count=1000)]
+        else:
+            equities = calculate_equities(ranges, board, 2,5, self.state.deck,(StandardHighHand,), sample_count=1000)
+            equity = []
+            eq_index = 0
+            for hc in self.state.hole_cards:
+                if hc:
+                    equity.append(equities[eq_index])
+                    eq_index += 1
+                else:
+                    equity.append(0)
+            return equity
+
+
+
     def post_action(self):
         if self.state.can_select_runout_count():
             self.state.select_runout_count(1)
@@ -162,7 +205,9 @@ class Hand:
         if self.state.street == None and self.auto_deal:
             for player_index, payoff in enumerate(self.state.payoffs):
                 if payoff > 0:
-                    self.u_hand[-1].append("p" + str(player_index) + "c" + str(payoff))
+                    tax = min(payoff * .05, 2 * self.big_blind)
+                    payoff -= tax
+                    self.u_hand[-1].append("p" + str(player_index) + "c" + str(int(payoff)))
             self.done = True
 
     def pot_size(self):
@@ -266,7 +311,6 @@ class Hand:
             stacks,
             self.player_count,
         )
-        #self.state.mode = Mode.CASH_GAME
         self.preflop_stacks = self.state.starting_stacks
         for i in range(self.player_count):
             hole_cards = "".join(map(self._state_card_to_text,self.state.deal_hole(2).cards))
@@ -274,7 +318,9 @@ class Hand:
         return self.u_hand
 
 if __name__ == '__main__':
-    #hand = Hand([["","","","","","9hKc"],["Js","Ts","9s"],["p0c100","p1c99","p2c109","p3c102","p4c110","p5c85","p0c1","p1c2"],["p2f","p3f","p4f","p5c43","p0f", "p1c41"],[],[],[]])
-    hand = Hand([["", "", "", "", "TdJd", ""], ["7s", "6s", "3d"], ["p0c30457", "p1c23785", "p2c7234", "p3c18815", "p4c12575", "p5c10289", "p0c100", "p1c200"], ["p2f", "p3f", "p4c200", "p5c875", "p0f", "p1f", "p4c675"], [], [], [], []])
-    for i in range(5):
+    hand = Hand([["", "", "", "", "4d5h", ""], ["7s", "6s", "3d"], ["p0c30457", "p1c23785", "p2c7234", "p3c18815", "p4c12575", "p5c10289", "p0c100", "p1c200"], ["p2f", "p3f", "p4c200", "p5c875", "p0f", "p1f", "p4c675"], [], [], [], []])
+    print(hand.equity())
+    for i in range(1):
         hand = Hand()
+        hand.fold()
+        print(hand.equity())
